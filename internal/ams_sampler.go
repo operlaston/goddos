@@ -9,42 +9,42 @@ import (
 )
 
 type AMSHasher struct {
-	seeds [][]maphash.Seed
-	buckets [][]int
-	num_buckets int
-	num_items_per_bucket int
+	seeds              [][]maphash.Seed
+	buckets            [][]int
+	numBuckets         int
+	numItemsPerBucket  int
 }
 
-func NewAMSHasher(num_buckets int, num_items_per_bucket int) *AMSHasher {
-	buckets := make([][]int, num_buckets)
+func NewAMSHasher(numBuckets int, numItemsPerBucket int) *AMSHasher {
+	buckets := make([][]int, numBuckets)
 	for i := range buckets {
-		buckets[i] = make([]int, num_items_per_bucket)
+		buckets[i] = make([]int, numItemsPerBucket)
 		for j := range buckets[i] {
 			buckets[i][j] = 0
 		}
 
 	}
 
-	seeds := make([][]maphash.Seed, num_buckets)
+	seeds := make([][]maphash.Seed, numBuckets)
 	for i := range seeds {
-		seeds[i] = make([]maphash.Seed, num_items_per_bucket)
+		seeds[i] = make([]maphash.Seed, numItemsPerBucket)
 		for j := range buckets[i] {
 			seeds[i][j] = maphash.MakeSeed()
 		}
 
 	}
-	
+
 	return &AMSHasher{
-		seeds: seeds,
-		buckets: buckets,
-		num_buckets: num_buckets,
-		num_items_per_bucket: num_items_per_bucket,
+		seeds:             seeds,
+		buckets:           buckets,
+		numBuckets:        numBuckets,
+		numItemsPerBucket: numItemsPerBucket,
 	}
 }
 
-func (h *AMSHasher) Hash(item []byte, bucket_index int, seed_index int) int {
+func (h *AMSHasher) Hash(item []byte, bucketIndex int, seedIndex int) int {
 	var mh maphash.Hash
-	mh.SetSeed(h.seeds[bucket_index][seed_index])
+	mh.SetSeed(h.seeds[bucketIndex][seedIndex])
 	mh.Write(item)
 
 	hashVal := mh.Sum64()
@@ -55,35 +55,35 @@ func (h *AMSHasher) Hash(item []byte, bucket_index int, seed_index int) int {
 	return -1
 }
 
-func (ams* AMSHasher) Ams(b []byte, bucket_index int) {
-	for i := range ams.buckets[bucket_index] {
-		z := ams.Hash(b, bucket_index, i)
-		ams.buckets[bucket_index][i] += z
+func (ams *AMSHasher) Ams(b []byte, bucketIndex int) {
+	for i := range ams.buckets[bucketIndex] {
+		z := ams.Hash(b, bucketIndex, i)
+		ams.buckets[bucketIndex][i] += z
 	}
 }
 
-func (ams* AMSHasher) combine() float64 {
-	bucket_averages := make([]float64, ams.num_buckets)
+func (ams *AMSHasher) combine() float64 {
+	bucketAverages := make([]float64, ams.numBuckets)
 
 	for i := range ams.buckets {
-		sum_of_squares := 0.0
+		sumOfSquares := 0.0
 		for j := range ams.buckets[i] {
 			z := float64(ams.buckets[i][j])
-			sum_of_squares += z * z
+			sumOfSquares += z * z
 		}
-		bucket_averages[i] = sum_of_squares / float64(ams.num_items_per_bucket)
+		bucketAverages[i] = sumOfSquares / float64(ams.numItemsPerBucket)
 	}
 
-	sort.Float64s(bucket_averages)
-	
-	mid := ams.num_buckets / 2
-	if ams.num_buckets%2 == 0 {
-		return (bucket_averages[mid-1] + bucket_averages[mid]) / 2.0
+	sort.Float64s(bucketAverages)
+
+	mid := ams.numBuckets / 2
+	if ams.numBuckets%2 == 0 {
+		return (bucketAverages[mid-1] + bucketAverages[mid]) / 2.0
 	}
-	return bucket_averages[mid]
+	return bucketAverages[mid]
 }
 
-func Calculate_f2() float64 {
+func calculateF2() float64 {
 	r := strings.NewReader("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
 	hasher := NewAMSHasher(21, 30)
@@ -94,9 +94,9 @@ func Calculate_f2() float64 {
 		if err == io.EOF {
 			break
 		}
-		for bucket_index := range hasher.buckets {
-			// fmt.Printf("Processing bucket %v\n", bucket_index)
-			hasher.Ams(b, bucket_index)
+		for bucketIndex := range hasher.buckets {
+			// fmt.Printf("Processing bucket %v\n", bucketIndex)
+			hasher.Ams(b, bucketIndex)
 		}
 	}
 	return hasher.combine()
@@ -104,5 +104,5 @@ func Calculate_f2() float64 {
 }
 
 func main() {
-	fmt.Printf("Estimated f_2 is %v\n", Calculate_f2())
+	fmt.Printf("Estimated f_2 is %v\n", calculateF2())
 }
