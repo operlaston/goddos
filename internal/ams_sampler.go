@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"hash/maphash"
 	"io"
+	"math"
 	"sort"
 	"strings"
 )
@@ -86,7 +87,13 @@ func (ams *AMSHasher) combine() float64 {
 func calculateF2() float64 {
 	r := strings.NewReader("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
-	hasher := NewAMSHasher(21, 30)
+	desiredEpsilon := .1
+	desiredDelta := .05
+
+	numBuckets := int(math.Ceil(math.Log(1.0 / desiredDelta)))
+	numItemsPerBucket := int(math.Ceil(1 / (desiredEpsilon * desiredEpsilon)))
+
+	hasher := NewAMSHasher(numBuckets, numItemsPerBucket)
 
 	b := make([]byte, 1)
 	for {
