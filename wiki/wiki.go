@@ -14,8 +14,8 @@
 package main
 
 import (
-	// "fmt"
 	"errors"
+	"fmt"
 	"html/template"
 	"log"
 	"net/http"
@@ -31,22 +31,35 @@ type Page struct {
 // Must panics on failure instead of returning an error
 // We only parseFiles one time instead of on each viewHandler
 // or editHandler call
-var templates = template.Must(template.ParseFiles("edit.html", "view.html"))
+var templates = template.Must(template.ParseFiles("tmpl/edit.html", "tmpl/view.html"))
 
 // MustCompile panics on failure instead of returning an error
 var validPath = regexp.MustCompile("^/(edit|save|view)/([a-zA-Z0-9]+)$")
+var replaceLinks = regexp.MustCompile(`\[([a-zA-Z0-9]+)\]`)
+
+func (p *Page) DisplayBody() template.HTML {
+	body := replaceLinks.ReplaceAllFunc([]byte(p.Body), func(match []byte) []byte {
+		var linkTag string
+		pageName := match[1 : len(match)-1]
+		linkTag = fmt.Sprintf("<a href=\"/view/%s\">%s</a>", pageName, pageName)
+		return []byte(linkTag)
+	})
+
+	return template.HTML(body)
+}
 
 func (p *Page) save() error {
-	filename := p.Title + ".txt"
+	filename := "data/" + p.Title + ".txt"
 	return os.WriteFile(filename, p.Body, 0600)
 }
 
 func loadPage(title string) (*Page, error) {
-	filename := title + ".txt"
+	filename := "data/" + title + ".txt"
 	body, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
+
 	return &Page{Title: title, Body: body}, nil
 }
 
@@ -117,10 +130,15 @@ func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
 	http.Redirect(w, r, "/view/"+title, http.StatusFound)
 }
 
+func rootHandler(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, "/view/FrontPage", http.StatusFound)
+}
+
 func main() {
 	// map routes to handlers
 	http.HandleFunc("/view/", makeHandler(viewHandler))
 	http.HandleFunc("/edit/", makeHandler(editHandler))
 	http.HandleFunc("/save/", makeHandler(saveHandler))
+	http.HandleFunc("/", rootHandler)
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
